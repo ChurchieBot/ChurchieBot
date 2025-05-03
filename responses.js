@@ -531,6 +531,14 @@ function getBotResponse(input) {
         return "Tell me if you're interested in:<br>1. Cybersecurity/AI<br>2. Business<br>3. Art/Design<br>4. Engineering<br>5. Marine Science or PE";
     }
 
+    if (waitingForYear10Help && input.includes("no")) {
+        waitingForYear10Help = false;
+        waitingForYear10Interest = true;
+        // Return a predefined response to the user
+        return "Okay, go ahead and list your subject.";
+    }
+
+
     // Handle numeric interest answers (before matching subjects)
     if (waitingForYear10Interest && /^[1-5]$/.test(input.trim())) {
         waitingForYear10Interest = false;

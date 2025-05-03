@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ChurchieBot Chat</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"> <!--Icon for button-->
+  <!--CSS and Style for Chatbot-->
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    /* Settings */
+    html, body { 
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: Georgia, serif;
+    }
+    /* Set Background */
+    body {
+      background: url('Nexus Page to Show.png') no-repeat center center fixed;
+      background-size: cover;
+    } 
+    /* Put the button in the bottom right */
+    #chatWrapper {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 1000;
+    }
+    /* For dragging and expanding the chatbot */
+    .chat-container-wrapper.transitioning {
+  transition: height 0.4s ease, width 0.4s ease;
+    }       
+    .chat-container-wrapper {
+      background-color: #4da3ff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+      transform-origin: bottom right;
+      height: 50px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      width: 320px;
+    }
+
+    .chat-container-wrapper.expanded {
+      justify-content: flex-start;
+    }
+    
+    /* Collapsible part of chatbot */ 
+    .collapsible {
+      width: 100%;
+      border: none;
+      background-color: transparent;
+      color: white;
+      padding: 12px 20px;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+      text-align: center;
+      gap: 8px;
+      height: 50px;
+    }
+
+    /* Hidden content area below collapsible by default */
+    .content {
+      display: none;
+      background-color: #fff;
+      height: 470px;
+      border-radius: 0 0 15px 15px;
+      overflow: hidden;
+      flex-direction: column;
+      flex: 1 1 auto;
+    }
+
+    /* content visible when pressed */
+    .content.visible {
+      display: flex;
+    }
+
+    /* Container for the entire chat interface */
+    .full-chat-block {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      justify-content: space-between;
+    }
+
+    /* Scrollable chat area */
+    .chat-container {
+      flex: 1;
+      padding: 15px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* Styles for user and bot text bubbles like when they actually say something*/ 
+    .botText, .userText {
+      max-width: 75%;
+      padding: 10px 15px;
+      border-radius: 15px;
+      line-height: 1.5;
+      font-size: 14px;
+      display: inline-block;
+    }
+
+    .botText {
+      align-self: flex-start;
+      background: #e5e5e5;
+      color: black;
+    }
+
+    .userText {
+      align-self: flex-end;
+      background: #4da3ff;
+      color: white;
+    }
+
+    /* Input area at bottom of chat */
+    .chat-bar-input-block {
+      padding: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-top: 1px solid #ddd;
+      background-color: #fff;
+    }
+    /* Styling for input field */
+    .input-box {
+      flex: 1;
+      padding: 10px;
+      border-radius: 20px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+    }
+    /* Style for icon buttons next to the input (heart and cursor thing emailing thing) */ 
+    .chat-bar-icons i {
+      cursor: pointer;
+      font-size: 18px;
+    }
+
+    #chat-timestamp {
+      margin: 0;
+      font-weight: bold;
+      font-size: 14px;
+      text-align: center;
+    }
+    /* Top and left resizers for resizing the chat container */ 
+    #resizer-top, #resizer-left {
+      position: absolute;
+      background: transparent;
+      z-index: 10;
+    }
+
+    #resizer-top {
+      height: 10px;
+      top: 0;
+      left: 0;
+      right: 0;
+      cursor: ns-resize;
+    }
+
+    #resizer-left {
+      width: 10px;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      cursor: ew-resize;
+    }
+
+    /* Typing Bubble Animation */
+    .typing {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 4px;
+    }
+
+    .typing span {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background: #888;
+      border-radius: 50%;
+      animation: bounce 0.9s infinite ease-in-out;
+    }
+
+    .typing span:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .typing span:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+    /* Keyframes for typing bubble animation */
+    @keyframes bounce {
+      0%, 80%, 100% {
+        transform: scale(0.6);
+      }
+      40% {
+        transform: scale(1);
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div id="chatWrapper">
+  <div id="chatContainer" class="chat-container-wrapper">
+
+    <!-- Button to toggle chat visibility -->
+
+    <button id="chat-button" type="button" class="collapsible">
+      <span>Chat with ChurchieBot</span>
+      <i class="fa fa-fw fa-comments-o"></i>
+    </button>
+
+    <div class="content" id="chatContent">
+      <div class="full-chat-block">
+
+        <!-- Container for chat messages -->
+
+        <div class="chat-container" id="chatbox">
+          <h5 id="chat-timestamp"></h5>
+        </div>
+        <div class="chat-bar-input-block">
+
+          <!-- Text input for typing messages -->
+
+          <input id="textInput" class="input-box" type="text" name="msg" placeholder="Tap 'Enter' to send a message">
+          <div class="chat-bar-icons">
+
+            <!-- Icons for sending heart or message -->
+
+            <i class="fa fa-fw fa-heart" style="color: crimson;" onclick="sendHeart()"></i>
+            <i class="fa fa-fw fa-send" style="color: #333;" onclick="sendMessage()"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="resizer-top"></div>
+    <div id="resizer-left"></div>
+  </div>
+</div>
+<!-- Link it to responses.js file (very important) -->
+<script src="responses.js"></script>
+<script>
+  // === Element References ===
+  const chatBtn = document.getElementById("chat-button");           // Button to toggle chat visibility
+  const chatBox = document.getElementById("chatContent");           // Main content area of the chat
+  const chatContainer = document.getElementById("chatContainer");   // Outer wrapper for resizing
+  const chatboxDisplay = document.getElementById("chatbox");        // Area where messages appear
+  const inputField = document.getElementById("textInput");          // User input box
+
+  const resizerTop = document.getElementById("resizer-top");        // Top resizer bar
+  const resizerLeft = document.getElementById("resizer-left");      // Left resizer bar
+
+  // Initialise some variables
+  let isDraggingTop = false;
+  let isDraggingLeft = false;
+  let lastExpandedSize = { width: 320, height: 520 };
+
+  let initialMouseX, initialMouseY, initialWidth, initialHeight, initialLeft, initialTop;
+
+  // Toggle Chat Button Behaviour
+  chatBtn.addEventListener("click", () => {
+    const isOpen = chatBox.classList.contains("visible");
+
+    if (isOpen) {
+
+      // Collapse chat
+
+      chatBox.classList.remove("visible");
+      const wrapper = document.querySelector('.chat-container-wrapper');
+      wrapper.classList.add('transitioning');
+      wrapper.classList.toggle('extended');
+      setTimeout(() => wrapper.classList.remove('transitioning'), 400);
+        
+      chatContainer.classList.remove("expanded");
+      chatContainer.style.width = "320px";
+      chatContainer.style.height = "50px";
+      chatContainer.style.left = "";
+      chatContainer.style.top = "";
+      chatContainer.style.right = "20px";
+      chatContainer.style.bottom = "20px";
+    } else {
+
+      // Expand chat
+
+      chatBox.classList.add("visible");
+      const wrapper = document.querySelector('.chat-container-wrapper');
+      wrapper.classList.add('transitioning');
+      wrapper.classList.toggle('extended');
+      setTimeout(() => wrapper.classList.remove('transitioning'), 400);
+      chatContainer.classList.add("expanded");
+      chatContainer.style.width = lastExpandedSize.width + "px";
+      chatContainer.style.height = lastExpandedSize.height + "px";
+      chatContainer.style.right = "20px";
+      chatContainer.style.bottom = "20px";
+      chatContainer.style.left = "auto";
+      chatContainer.style.top = "auto";
+
+      const now = new Date();
+      const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      document.getElementById("chat-timestamp").innerHTML = `<b>Chat start - ${timeString}</b>`;
+
+    }
+  });
+
+  // Make it so 'Enter' Key Sends Message to the bot
+  inputField.addEventListener("keypress", function(e) {
+    if (e.key === "Enter") {
+      sendMessage();
+    }
+  });
+
+
+  // Message Logic
+  function sendMessage() {
+  const userText = inputField.value.trim();
+  if (!userText) return;
+
+  // Display user's message
+  const userMessage = document.createElement("p");
+  userMessage.className = "userText";
+  userMessage.innerHTML = `<span>${userText}</span>`;
+  chatboxDisplay.appendChild(userMessage);
+  inputField.value = "";
+
+  // Show typing animation
+  const typingBubble = document.createElement("p");
+  typingBubble.className = "botText";
+  typingBubble.innerHTML = `
+    <span class="typing">
+      <span></span><span></span><span></span>
+    </span>
+  `;
+  chatboxDisplay.appendChild(typingBubble);
+  chatboxDisplay.scrollTop = chatboxDisplay.scrollHeight;
+
+  setTimeout(() => {
+    typingBubble.remove();
+    let botResponse;
+
+    try {
+      botResponse = getBotResponse(userText);
+    } catch (err) {
+      botResponse = `⚠️ An error occurred while processing your request: ${err.message}`; // ERROR CATCHING (MAINLY FOR DEVELOPERS)
+    }
+
+    // Handle Special Cmds e.g. background change, reset background, reset size, etc.
+
+    if (botResponse === "__UPLOAD_CHAT_BG__") {
+      const botPrompt = document.createElement("p");
+      botPrompt.className = "botText";
+      botPrompt.innerHTML = `<span>Sure! Please upload an image to set as the chat background:</span>`;
+      chatboxDisplay.appendChild(botPrompt);
+
+      const uploadInput = document.createElement("input");
+      uploadInput.type = "file";
+      uploadInput.accept = "image/*";
+      uploadInput.style.marginTop = "10px";
+      uploadInput.onchange = function(event) {
+        const file = event.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = function(e) {
+            const chatArea = document.getElementById("chatbox");
+            chatArea.style.backgroundImage = `url('${e.target.result}')`;
+            chatContainer.style.backgroundSize = "cover";
+            chatContainer.style.backgroundPosition = "center";
+          };
+          reader.readAsDataURL(file);
+        }
+      };
+
+      const uploadWrapper = document.createElement("div");
+      uploadWrapper.className = "botText";
+      uploadWrapper.appendChild(uploadInput);
+      chatboxDisplay.appendChild(uploadWrapper);
+      chatboxDisplay.scrollTop = chatboxDisplay.scrollHeight;
+
+    } else if (botResponse === "__RESET_CHAT_BG__") {
+
+      // Reset background image
+      const botReply = document.createElement("p");
+      botReply.className = "botText";
+      botReply.innerHTML = `<span>The chat background has been reset.</span>`;
+      chatboxDisplay.appendChild(botReply);
+
+      const chatArea = document.getElementById("chatbox");
+      chatArea.style.backgroundImage = "none";
+      chatboxDisplay.scrollTop = chatboxDisplay.scrollHeight;
+
+    } else if (botResponse === "__MAKE_FULLSCREEN__") {
+
+      // Expand to fullscreen
+      const botReply = document.createElement("p");
+      botReply.className = "botText";
+      botReply.innerHTML = `<span>The chat has been expanded to full screen.</span>`;
+      chatboxDisplay.appendChild(botReply);
+
+      chatContainer.classList.add("expanded");
+      chatBox.classList.add("visible");
+
+      chatContainer.style.width = "100vw";
+      chatContainer.style.height = "100vh";
+      chatContainer.style.top = "0";
+      chatContainer.style.left = "0";
+      chatContainer.style.right = "0";
+      chatContainer.style.bottom = "0";
+
+      lastExpandedSize.width = window.innerWidth;
+      lastExpandedSize.height = window.innerHeight;
+
+      chatboxDisplay.scrollTop = chatboxDisplay.scrollHeight;
+      return;
+
+    } else if (botResponse === "___DELETE_CHAT____") {
+
+      // Clear all messages
+      const messages = chatboxDisplay.querySelectorAll("p");
+      messages.forEach(msg => msg.remove());
+
+      const botReply = document.createElement("p");
+      botReply.className = "botText";
+      botReply.innerHTML = `<span>All chat messages have been deleted.</span>`;
+      chatboxDisplay.appendChild(botReply);
+      chatboxDisplay.scrollTop = chatboxDisplay.scrollHeight;
+
+    } else if (botResponse === "__RESET_CHAT_SIZE__") {
+
+      // Reset size to default
+      const botReply = document.createElement("p");
+      botReply.className = "botText";
+      botReply.innerHTML = `<span>The chat window has been reset to its default size.</span>`;
+      chatboxDisplay.appendChild(botReply);
+
+      chatContainer.classList.add("expanded");
+      chatBox.classList.add("visible");
+
+      chatContainer.style.width = "320px";
+      chatContainer.style.height = "520px";
+      chatContainer.style.right = "20px";
+      chatContainer.style.bottom = "20px";
+      chatContainer.style.left = "";
+      chatContainer.style.top = "";
+
+      lastExpandedSize.width = 320;
+      lastExpandedSize.height = 520;
+
+      chatboxDisplay.scrollTop = chatboxDisplay.scrollHeight;
+      return;
+
+    } else {
+      // Display regular bot reply
+      try {
+        const safeResponse = String(botResponse ?? "Something went wrong.");
+        const botMessage = document.createElement("p");
+        botMessage.className = "botText";
+        botMessage.innerHTML = `<span>${safeResponse}</span>`;
+        chatboxDisplay.appendChild(botMessage);
+      } catch (error) {
+        const errorMessage = document.createElement("p");
+        errorMessage.className = "botText";
+        errorMessage.innerHTML = `<span>⚠️ An error occurred: ${String(error.message)}</span>`;
+        chatboxDisplay.appendChild(errorMessage);
+      }
+
+      chatboxDisplay.scrollTop = chatboxDisplay.scrollHeight;
+    }
+  }, 1000); // Simulate bot typing delay
+}
+
+  // Heart Icon Behavior
+  function sendHeart() {
+    const userMessage = document.createElement("p");
+    userMessage.className = "userText";
+    userMessage.innerHTML = `<span>❤️</span>`;
+    chatboxDisplay.appendChild(userMessage);
+
+    setTimeout(() => {
+      const botMessage = document.createElement("p");
+      botMessage.className = "botText";
+      botMessage.innerHTML = `<span>Thanks for clicking the heart!</span>`;
+      chatboxDisplay.appendChild(botMessage);
+      chatboxDisplay.scrollTop = chatboxDisplay.scrollHeight;
+    }, 500);
+  }
+
+  // Resizing Logic for Top Edge
+  resizerTop.addEventListener("mousedown", (e) => {
+    if (!chatContainer.classList.contains("expanded")) return;
+    isDraggingTop = true;
+    initialMouseY = e.clientY;
+    initialHeight = chatContainer.offsetHeight;
+    const rect = chatContainer.getBoundingClientRect();
+    initialTop = rect.top;
+    document.body.style.cursor = "ns-resize";
+  });
+
+  // Resizing Logic for Left Edge
+  resizerLeft.addEventListener("mousedown", (e) => {
+    if (!chatContainer.classList.contains("expanded")) return;
+    isDraggingLeft = true;
+    initialMouseX = e.clientX;
+    initialWidth = chatContainer.offsetWidth;
+    const rect = chatContainer.getBoundingClientRect();
+    initialLeft = rect.left;
+    document.body.style.cursor = "ew-resize";
+  });
+
+  window.addEventListener("mouseup", () => {
+    isDraggingTop = false;
+    isDraggingLeft = false;
+    document.body.style.cursor = "default";
+
+    if (chatContainer.classList.contains("expanded")) {
+      lastExpandedSize.width = chatContainer.offsetWidth;
+      lastExpandedSize.height = chatContainer.offsetHeight;
+    }
+  });
+
+
+  // When Mouse Up, End Resizing
+  window.addEventListener("mousemove", (e) => {
+    if (isDraggingTop) {
+      const dy = e.clientY - initialMouseY;
+      let newHeight = initialHeight - dy;
+      newHeight = Math.max(newHeight, 150);
+      chatContainer.style.height = newHeight + "px";
+      chatContainer.style.top = (initialTop + dy) + "px";
+      chatContainer.style.bottom = "auto";
+    }
+
+    // Mouse Move: Resize
+
+    if (isDraggingLeft) {
+      const dx = e.clientX - initialMouseX;
+      let newWidth = initialWidth - dx;
+      newWidth = Math.max(newWidth, 200);
+      chatContainer.style.width = newWidth + "px";
+      chatContainer.style.left = (initialLeft + dx) + "px";
+      chatContainer.style.right = "auto";
+    }
+  });
+</script>
+</body>
+</html>
+
+
